@@ -13,20 +13,49 @@
 // features, nothing a reader from 1800 could not picture.
 import { mkdirSync, writeFileSync } from "node:fs";
 
+// The gate: the sealed scorer accepts UTF-8 text of 1 to 200 characters,
+// not only white space. The entry is one sentence with no trailing newline.
+const MAX_ENTRY_CHARS = 200;
+const OUTPUT_PATH = "/output/entry.txt";
+
+// The entry itself. Kept as one literal so the sentence is exactly what
+// was written and judged — no joining, templating, or transformation that
+// could change a character.
 const ENTRY =
   "Think of a great market square where more books, letters, and songs wait on the stalls than any man could read in a lifetime, and any man may take what he asks for in the blink of an eye.";
 
-// Gate guard: the sealed scorer accepts UTF-8 text of 1 to 200 characters,
-// not only white space; the entry is one sentence with no trailing newline.
-if (ENTRY.length < 1 || ENTRY.length > 200) {
-  throw new Error(`entry must be 1-200 characters, got ${ENTRY.length}`);
-}
-if (ENTRY.trim() !== ENTRY) {
-  throw new Error("entry must not have leading or trailing whitespace");
-}
-if ((ENTRY.match(/\./g) ?? []).length !== 1 || !ENTRY.endsWith(".")) {
-  throw new Error("entry must be exactly one sentence");
+// Count the sentence-ending stops in the text. A single sentence ends
+// with exactly one full stop and contains no other.
+function countFullStops(text: string): number {
+  return (text.match(/\./g) ?? []).length;
 }
 
-mkdirSync("/output", { recursive: true });
-writeFileSync("/output/entry.txt", ENTRY, "utf8");
+// Check the entry against the gate before writing anything: length,
+// no surrounding whitespace, and exactly one sentence.
+function validateEntry(text: string): void {
+  if (text.length < 1 || text.length > MAX_ENTRY_CHARS) {
+    throw new Error(
+      `entry must be 1-${MAX_ENTRY_CHARS} characters, got ${text.length}`,
+    );
+  }
+  if (text.trim() !== text) {
+    throw new Error("entry must not have leading or trailing whitespace");
+  }
+  if (countFullStops(text) !== 1 || !text.endsWith(".")) {
+    throw new Error("entry must be exactly one sentence");
+  }
+}
+
+// Write the validated entry to the output path, creating the output
+// directory first. The file holds the sentence alone — no newline.
+function writeEntry(text: string): void {
+  mkdirSync("/output", { recursive: true });
+  writeFileSync(OUTPUT_PATH, text, "utf8");
+}
+
+function main(): void {
+  validateEntry(ENTRY);
+  writeEntry(ENTRY);
+}
+
+main();
